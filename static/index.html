@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水族馆鱼缸管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f4f8;
+            color: #333;
+        }
+        .header {
+            background: linear-gradient(135deg, #0077be 0%, #00a8e8 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 24px; }
+        .header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            color: #666;
+        }
+        .tab:hover { background: #f0f4f8; }
+        .tab.active { background: #0077be; color: white; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #0077be;
+            border-bottom: 2px solid #e0e7ef;
+            padding-bottom: 10px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .form-group { flex: 1; min-width: 150px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #0077be;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn-primary { background: #0077be; color: white; }
+        .btn-primary:hover { background: #005a8c; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e7ef;
+        }
+        th {
+            background: #f6f8fa;
+            font-weight: 600;
+            color: #444;
+        }
+        tr:hover { background: #f6f8fa; }
+        .status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-normal { background: #d4edda; color: #155724; }
+        .status-water { background: #fff3cd; color: #856404; }
+        .status-quarantine { background: #f8d7da; color: #721c24; }
+        .empty { text-align: center; padding: 30px; color: #999; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #0077be 0%, #00a8e8 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card .num { font-size: 32px; font-weight: bold; }
+        .stat-card .label { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            z-index: 1000;
+            animation: slideIn 0.3s;
+        }
+        .toast.success { background: #28a745; }
+        .toast.error { background: #dc3545; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .water-quality-list { max-height: 400px; overflow-y: auto; }
+        .water-quality-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .water-quality-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐠 水族馆鱼缸管理系统</h1>
+        <p>鱼缸档案 · 生物档案 · 水质记录 · 换水管理</p>
+    </div>
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" data-panel="tanks">鱼缸档案</div>
+            <div class="tab" data-panel="creatures">生物档案</div>
+            <div class="tab" data-panel="water-quality">水质记录</div>
+            <div class="tab" data-panel="water-changes">换水记录</div>
+            <div class="tab" data-panel="stats">统计分析</div>
+        </div>
+
+        <div class="panel active" id="panel-tanks">
+            <div class="card">
+                <h2>添加鱼缸</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>缸号</label>
+                        <input type="text" id="tank-no" placeholder="如：A01">
+                    </div>
+                    <div class="form-group">
+                        <label>类型</label>
+                        <select id="tank-type">
+                            <option value="淡水缸">淡水缸</option>
+                            <option value="海水缸">海水缸</option>
+                            <option value="草缸">草缸</option>
+                            <option value="裸缸">裸缸</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>容积(升)</label>
+                        <input type="number" id="tank-volume" min="1" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label>放置位置</label>
+                        <input type="text" id="tank-location" placeholder="如：客厅">
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select id="tank-status">
+                            <option value="正常">正常</option>
+                            <option value="换水中">换水中</option>
+                            <option value="检疫">检疫</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="addTank()">添加鱼缸</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>鱼缸列表</h2>
+                <table id="tanks-table">
+                    <thead>
+                        <tr>
+                            <th>缸号</th>
+                            <th>类型</th>
+                            <th>容积(升)</th>
+                            <th>放置位置</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tanks-body"></tbody>
+                </table>
+                <div id="tanks-empty" class="empty">暂无鱼缸数据</div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-creatures">
+            <div class="card">
+                <h2>添加生物</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>生物名</label>
+                        <input type="text" id="creature-name" placeholder="如：孔雀鱼">
+                    </div>
+                    <div class="form-group">
+                        <label>类型</label>
+                        <select id="creature-type">
+                            <option value="鱼类">鱼类</option>
+                            <option value="虾类">虾类</option>
+                            <option value="螺类">螺类</option>
+                            <option value="水草">水草</option>
+                            <option value="珊瑚">珊瑚</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>所在缸号</label>
+                        <select id="creature-tank"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>入缸日期</label>
+                        <input type="date" id="creature-date">
+                    </div>
+                    <div class="form-group">
+                        <label>数量</label>
+                        <input type="number" id="creature-quantity" min="1" value="1">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="addCreature()">添加生物</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>生物列表</h2>
+                <table id="creatures-table">
+                    <thead>
+                        <tr>
+                            <th>生物名</th>
+                            <th>类型</th>
+                            <th>所在缸号</th>
+                            <th>入缸日期</th>
+                            <th>数量</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="creatures-body"></tbody>
+                </table>
+                <div id="creatures-empty" class="empty">暂无生物数据</div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-water-quality">
+            <div class="card">
+                <h2>添加水质记录</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>缸号</label>
+                        <select id="wq-tank"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>检测日期</label>
+                        <input type="date" id="wq-date">
+                    </div>
+                    <div class="form-group">
+                        <label>pH值 (6.0-8.5)</label>
+                        <input type="number" id="wq-ph" step="0.1" min="6.0" max="8.5" value="7.0">
+                    </div>
+                    <div class="form-group">
+                        <label>亚硝酸盐(ppm)</label>
+                        <input type="number" id="wq-nitrite" step="0.01" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>温度(℃) (18-32)</label>
+                        <input type="number" id="wq-temp" step="0.1" min="18" max="32" value="25">
+                    </div>
+                    <div class="form-group">
+                        <label>记录人</label>
+                        <input type="text" id="wq-recorder" placeholder="如：管理员">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="addWaterQuality()">添加记录</button>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #666; margin-top: -10px;">注：只有正常状态的鱼缸才能添加水质记录</p>
+            </div>
+            <div class="card">
+                <h2>查看最近水质记录</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选择鱼缸</label>
+                        <select id="wq-view-tank"></select>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="viewWaterQuality()">查询最近7条</button>
+                    </div>
+                </div>
+                <div id="wq-result" class="water-quality-list" style="margin-top: 15px;">
+                    <div class="empty">请选择鱼缸并查询</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-water-changes">
+            <div class="card">
+                <h2>添加换水记录</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>缸号</label>
+                        <select id="wc-tank"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="wc-date">
+                    </div>
+                    <div class="form-group">
+                        <label>换水量(升)</label>
+                        <input type="number" id="wc-volume" min="1" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>操作人</label>
+                        <input type="text" id="wc-operator" placeholder="如：管理员">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button class="btn btn-primary" onclick="addWaterChange()">记录换水</button>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #666; margin-top: -10px;">注：换水操作会自动将状态改为换水中，记录完成后自动恢复正常</p>
+            </div>
+            <div class="card">
+                <h2>换水记录列表</h2>
+                <table id="wc-table">
+                    <thead>
+                        <tr>
+                            <th>缸号</th>
+                            <th>日期</th>
+                            <th>换水量(升)</th>
+                            <th>操作人</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wc-body"></tbody>
+                </table>
+                <div id="wc-empty" class="empty">暂无换水记录</div>
+            </div>
+        </div>
+
+        <div class="panel" id="panel-stats">
+            <div class="card">
+                <h2>本月各缸类型换水次数统计</h2>
+                <div class="stats-grid" id="stats-grid">
+                    <div class="empty">暂无数据</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        async function api(path, method = 'GET', body = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) options.body = JSON.stringify(body);
+            const res = await fetch(API + path, options);
+            const data = await res.json();
+            if (data.code !== 200) {
+                showToast(data.message, 'error');
+                throw new Error(data.message);
+            }
+            return data.data;
+        }
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+                if (tab.dataset.panel === 'stats') loadStats();
+                if (tab.dataset.panel === 'water-changes') loadWaterChanges();
+            });
+        });
+
+        async function loadTanks() {
+            const tanks = await api('/tanks');
+            const tbody = document.getElementById('tanks-body');
+            const empty = document.getElementById('tanks-empty');
+            if (tanks.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                tbody.innerHTML = tanks.map(t => {
+                    let statusClass = 'status-normal';
+                    if (t.status === '换水中') statusClass = 'status-water';
+                    if (t.status === '检疫') statusClass = 'status-quarantine';
+                    return `
+                        <tr>
+                            <td>${t.tank_no}</td>
+                            <td>${t.type}</td>
+                            <td>${t.volume}</td>
+                            <td>${t.location}</td>
+                            <td><span class="status ${statusClass}">${t.status}</span></td>
+                            <td><button class="btn btn-danger btn-sm" onclick="deleteTank('${t.tank_no}')">删除</button></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+            updateTankSelects();
+        }
+
+        async function updateTankSelects() {
+            const tanks = await api('/tanks');
+            const options = tanks.map(t => `<option value="${t.tank_no}">${t.tank_no} (${t.type})</option>`).join('');
+            document.getElementById('creature-tank').innerHTML = options;
+            document.getElementById('wq-tank').innerHTML = options;
+            document.getElementById('wq-view-tank').innerHTML = options;
+            document.getElementById('wc-tank').innerHTML = options;
+        }
+
+        async function addTank() {
+            const tank_no = document.getElementById('tank-no').value.trim();
+            const type = document.getElementById('tank-type').value;
+            const volume = parseInt(document.getElementById('tank-volume').value);
+            const location = document.getElementById('tank-location').value.trim();
+            const status = document.getElementById('tank-status').value;
+            if (!tank_no || !location || volume <= 0) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            try {
+                await api('/tanks', 'POST', { tank_no, type, volume, location, status });
+                showToast('添加成功');
+                document.getElementById('tank-no').value = '';
+                document.getElementById('tank-location').value = '';
+                loadTanks();
+            } catch (e) {}
+        }
+
+        async function deleteTank(tankNo) {
+            if (!confirm('确定删除鱼缸 ' + tankNo + ' 吗？')) return;
+            try {
+                await api('/tanks?tank_no=' + encodeURIComponent(tankNo), 'DELETE');
+                showToast('删除成功');
+                loadTanks();
+            } catch (e) {}
+        }
+
+        async function loadCreatures() {
+            const creatures = await api('/creatures');
+            const tbody = document.getElementById('creatures-body');
+            const empty = document.getElementById('creatures-empty');
+            if (creatures.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                tbody.innerHTML = creatures.map(c => `
+                    <tr>
+                        <td>${c.name}</td>
+                        <td>${c.type}</td>
+                        <td>${c.tank_no}</td>
+                        <td>${c.enter_date}</td>
+                        <td>${c.quantity}</td>
+                        <td><button class="btn btn-danger btn-sm" onclick="deleteCreature(${c.id})">删除</button></td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function addCreature() {
+            const name = document.getElementById('creature-name').value.trim();
+            const type = document.getElementById('creature-type').value;
+            const tank_no = document.getElementById('creature-tank').value;
+            const enter_date = document.getElementById('creature-date').value;
+            const quantity = parseInt(document.getElementById('creature-quantity').value);
+            if (!name || !enter_date || quantity <= 0) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            try {
+                await api('/creatures', 'POST', { name, type, tank_no, enter_date, quantity });
+                showToast('添加成功');
+                document.getElementById('creature-name').value = '';
+                loadCreatures();
+            } catch (e) {}
+        }
+
+        async function deleteCreature(id) {
+            if (!confirm('确定删除吗？')) return;
+            try {
+                await api('/creatures?id=' + id, 'DELETE');
+                showToast('删除成功');
+                loadCreatures();
+            } catch (e) {}
+        }
+
+        async function addWaterQuality() {
+            const tank_no = document.getElementById('wq-tank').value;
+            const test_date = document.getElementById('wq-date').value;
+            const ph = parseFloat(document.getElementById('wq-ph').value);
+            const nitrite = parseFloat(document.getElementById('wq-nitrite').value);
+            const temperature = parseFloat(document.getElementById('wq-temp').value);
+            const recorder = document.getElementById('wq-recorder').value.trim();
+            if (!test_date || !recorder) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            try {
+                await api('/water-quality', 'POST', { tank_no, test_date, ph, nitrite, temperature, recorder });
+                showToast('添加成功');
+            } catch (e) {}
+        }
+
+        async function viewWaterQuality() {
+            const tank_no = document.getElementById('wq-view-tank').value;
+            if (!tank_no) return;
+            const records = await api('/water-quality?tank_no=' + encodeURIComponent(tank_no));
+            const result = document.getElementById('wq-result');
+            if (records.length === 0) {
+                result.innerHTML = '<div class="empty">暂无水质记录</div>';
+            } else {
+                result.innerHTML = records.map(r => `
+                    <div class="water-quality-item">
+                        <div>
+                            <strong>${r.test_date}</strong> · ${r.recorder}
+                        </div>
+                        <div style="display: flex; gap: 15px; font-size: 13px; color: #666;">
+                            <span>pH: ${r.ph}</span>
+                            <span>亚硝酸盐: ${r.nitrite} ppm</span>
+                            <span>温度: ${r.temperature}℃</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function addWaterChange() {
+            const tank_no = document.getElementById('wc-tank').value;
+            const date = document.getElementById('wc-date').value;
+            const volume = parseInt(document.getElementById('wc-volume').value);
+            const operator = document.getElementById('wc-operator').value.trim();
+            if (!date || !operator || volume <= 0) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            try {
+                await api('/water-changes', 'POST', { tank_no, date, volume, operator });
+                showToast('换水记录已添加');
+                loadWaterChanges();
+                loadTanks();
+            } catch (e) {}
+        }
+
+        async function loadWaterChanges() {
+            const records = await api('/water-changes');
+            const tbody = document.getElementById('wc-body');
+            const empty = document.getElementById('wc-empty');
+            if (records.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                tbody.innerHTML = records.map(r => `
+                    <tr>
+                        <td>${r.tank_no}</td>
+                        <td>${r.date}</td>
+                        <td>${r.volume}</td>
+                        <td>${r.operator}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function loadStats() {
+            const stats = await api('/stats/monthly-water-changes');
+            const grid = document.getElementById('stats-grid');
+            if (stats.length === 0) {
+                grid.innerHTML = '<div class="empty">暂无数据</div>';
+            } else {
+                grid.innerHTML = stats.map(s => `
+                    <div class="stat-card">
+                        <div class="num">${s.count}</div>
+                        <div class="label">${s.tank_type} · 本月换水次数</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function initDates() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('creature-date').value = today;
+            document.getElementById('wq-date').value = today;
+            document.getElementById('wc-date').value = today;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDates();
+            loadTanks();
+            loadCreatures();
+        });
+    </script>
+</body>
+</html>
