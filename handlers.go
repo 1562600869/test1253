@@ -13,6 +13,39 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
+var validTankTypes = map[string]bool{
+	"淡水缸": true,
+	"海水缸": true,
+	"草缸":   true,
+	"裸缸":   true,
+}
+
+var validTankStatuses = map[string]bool{
+	"正常":   true,
+	"换水中": true,
+	"检疫":   true,
+}
+
+var validCreatureTypes = map[string]bool{
+	"鱼类": true,
+	"虾类": true,
+	"螺类": true,
+	"水草": true,
+	"珊瑚": true,
+}
+
+func isValidTankType(t string) bool {
+	return validTankTypes[t]
+}
+
+func isValidTankStatus(s string) bool {
+	return validTankStatuses[s]
+}
+
+func isValidCreatureType(t string) bool {
+	return validCreatureTypes[t]
+}
+
 func jsonResponse(w http.ResponseWriter, code int, message string, data interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
@@ -38,8 +71,15 @@ func handleTanks(w http.ResponseWriter, r *http.Request) {
 			jsonResponse(w, 400, "参数不完整或不合法", nil)
 			return
 		}
+		if !isValidTankType(t.Type) {
+			jsonResponse(w, 400, "鱼缸类型不合法，可选值：淡水缸/海水缸/草缸/裸缸", nil)
+			return
+		}
 		if t.Status == "" {
 			t.Status = "正常"
+		} else if !isValidTankStatus(t.Status) {
+			jsonResponse(w, 400, "鱼缸状态不合法，可选值：正常/换水中/检疫", nil)
+			return
 		}
 		if err := AddTank(t); err != nil {
 			jsonResponse(w, 500, "添加鱼缸失败: "+err.Error(), nil)
@@ -50,6 +90,14 @@ func handleTanks(w http.ResponseWriter, r *http.Request) {
 		var t Tank
 		if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 			jsonResponse(w, 400, "请求参数错误: "+err.Error(), nil)
+			return
+		}
+		if t.Type != "" && !isValidTankType(t.Type) {
+			jsonResponse(w, 400, "鱼缸类型不合法，可选值：淡水缸/海水缸/草缸/裸缸", nil)
+			return
+		}
+		if t.Status != "" && !isValidTankStatus(t.Status) {
+			jsonResponse(w, 400, "鱼缸状态不合法，可选值：正常/换水中/检疫", nil)
 			return
 		}
 		if err := UpdateTank(t); err != nil {
@@ -92,6 +140,10 @@ func handleCreatures(w http.ResponseWriter, r *http.Request) {
 			jsonResponse(w, 400, "参数不完整或不合法", nil)
 			return
 		}
+		if !isValidCreatureType(c.Type) {
+			jsonResponse(w, 400, "生物类型不合法，可选值：鱼类/虾类/螺类/水草/珊瑚", nil)
+			return
+		}
 		if err := AddCreature(c); err != nil {
 			jsonResponse(w, 500, "添加生物失败: "+err.Error(), nil)
 			return
@@ -101,6 +153,10 @@ func handleCreatures(w http.ResponseWriter, r *http.Request) {
 		var c Creature
 		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 			jsonResponse(w, 400, "请求参数错误: "+err.Error(), nil)
+			return
+		}
+		if c.Type != "" && !isValidCreatureType(c.Type) {
+			jsonResponse(w, 400, "生物类型不合法，可选值：鱼类/虾类/螺类/水草/珊瑚", nil)
 			return
 		}
 		if err := UpdateCreature(c); err != nil {
